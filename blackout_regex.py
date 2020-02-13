@@ -56,7 +56,7 @@ class BlackoutRegex(PluginBase):
                             'Blackout %s is still active, setting alert %s '
                             'status as blackout',
                             blackout.id,
-                            alert.id)
+                            alert.id
                         )
                         alert.set_status('blackout')
                         return alert
