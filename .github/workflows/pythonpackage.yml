@@ -28,4 +28,4 @@ jobs:
         pip install -r requirements-dev.txt
     - name: Test plugin
       run: |
-        nosetests -v test_blackout_regex.py
+        tox

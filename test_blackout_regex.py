@@ -11,6 +11,8 @@ client_mod.Client = Mock()
 plugins_mod = sys.modules['alerta.plugins'] = Mock()
 plugins_mod.PluginBase = Mock
 
+from blackout_regex import BlackoutRegex  # pylama: ignore=E402
+
 
 class Model:
     def __init__(self, **kwargs):
@@ -50,7 +52,7 @@ class Alert(Model):
 client_mod.Client.return_value.get_blackouts.return_value = [
     Blackout(
         environment='test',
-        resource='test\d',
+        resource=r'test\d',
         service=None,
         event=None,
         group=None,
@@ -100,8 +102,6 @@ client_mod.Client.return_value.get_blackouts.return_value = [
         id='5',
     ),
 ]
-
-from blackout_regex import BlackoutRegex
 
 log = logging.getLogger(__name__)
 
