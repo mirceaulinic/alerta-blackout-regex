@@ -3,7 +3,7 @@
 '''
 '''
 import codecs
-from setuptools import setup, find_packages
+from setuptools import setup
 
 __author__ = 'Mircea Ulinic <ping@mirceaulinic.net>'
 
