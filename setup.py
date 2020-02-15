@@ -22,4 +22,9 @@ setup(
     zip_safe=True,
     url='https://github.com/mirceaulinic/alerta-blackout-regex',
     license="Apache License 2.0",
+    entry_points={
+        'alerta.plugins': [
+            'blackout_regex = blackout_regex:BlackoutRegex'
+        ]
+    }
 )
