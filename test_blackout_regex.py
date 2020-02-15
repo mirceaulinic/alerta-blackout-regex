@@ -100,7 +100,7 @@ client_mod.Client.return_value.get_blackouts.return_value = [
         id='5',
     ),
 ]
-import blackout_regex
+
 from blackout_regex import BlackoutRegex
 
 log = logging.getLogger(__name__)
