@@ -17,6 +17,18 @@ class Model:
         for arg, val in kwargs.items():
             setattr(self, arg, val)
 
+    def __str__(self):
+        return '{name}({attrs})'.format(
+            name=self.__class__.__name__,
+            attrs=', '.join(
+                [
+                    '{}={}'.format(attr, getattr(self, attr))
+                    for attr in dir(self)
+                    if not attr.startswith('__')
+                ]
+            ),
+        )
+
 
 class Blackout(Model):
     pass
@@ -44,11 +56,11 @@ client_mod.Client.return_value.get_blackouts.return_value = [
         group=None,
         tags=[],
         duration=3600,
-        id='1'
+        id='1',
     ),
     Blackout(
         environment='test',
-        service='service-([a-zA-Z])',
+        service=['service-([a-zA-Z])'],
         resource=None,
         event=None,
         group=None,
@@ -58,9 +70,8 @@ client_mod.Client.return_value.get_blackouts.return_value = [
     ),
     Blackout(
         environment='test',
-        tags=[
-            'site=site.*'
-        ],
+        tags=['site=site.*', 'role=router'],
+        service=None,
         resource=None,
         event=None,
         group=None,
@@ -69,29 +80,25 @@ client_mod.Client.return_value.get_blackouts.return_value = [
     ),
     Blackout(
         environment='test',
-        tags=[
-            'site=site.*',
-            'role=router'
-        ],
+        tags=['site=site.*', 'role=firewall'],
+        service=None,
         resource=None,
         event=None,
         group=None,
         duration=3600,
-        id='4'
+        id='4',
     ),
     Blackout(
         status='closed',
         environment='test',
-        tags=[
-            'site=site.*',
-            'role=router'
-        ],
+        tags=['site=site.*', 'role=router'],
+        service=None,
         resource=None,
         event=None,
         group=None,
         duration=3600,
-        id='5'
-    )
+        id='5',
+    ),
 ]
 import blackout_regex
 from blackout_regex import BlackoutRegex
@@ -100,7 +107,6 @@ log = logging.getLogger(__name__)
 
 
 class TestEnhance(unittest.TestCase):
-
     def test_new_alert_no_match(self):
         '''
         Test alert not matching a regex blackout.
@@ -143,7 +149,7 @@ class TestEnhance(unittest.TestCase):
         '''
         alert = Alert(
             id='match-service',
-            resource='test',
+            resource='test::resource',
             event='test-event',
             group='test',
             service=['service-blah'],
@@ -161,7 +167,7 @@ class TestEnhance(unittest.TestCase):
         '''
         alert = Alert(
             id='match-tag',
-            resource='test',
+            resource='test::resource',
             event='test-event',
             group='test',
             service=['test-service'],
@@ -179,7 +185,7 @@ class TestEnhance(unittest.TestCase):
         '''
         alert = Alert(
             id='no-match-tags',
-            resource='test',
+            resource='test::resource',
             event='test-event',
             group='test',
             service=['test-service'],
@@ -189,7 +195,7 @@ class TestEnhance(unittest.TestCase):
         test_obj = BlackoutRegex()
         test = test_obj.post_receive(alert)
         self.assertEqual(test.status, 'open')
-        self.assertEqual(test.tags, [])
+        self.assertEqual(test.tags, ['site=siteX', 'role=switch'])
 
     def test_old_alert_inactive_blackout(self):
         '''
@@ -197,7 +203,7 @@ class TestEnhance(unittest.TestCase):
         '''
         alert = Alert(
             id='old-alert',
-            resource='test',
+            resource='test::resource',
             event='test-event',
             group='test',
             service=['test-service'],
@@ -215,7 +221,7 @@ class TestEnhance(unittest.TestCase):
         '''
         alert = Alert(
             id='old-alert',
-            resource='test',
+            resource='test::resource',
             event='test-event',
             group='test',
             service=['test-service'],

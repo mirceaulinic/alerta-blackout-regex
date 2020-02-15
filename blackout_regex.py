@@ -17,14 +17,10 @@ client = Client()
 
 
 def parse_tags(tag_list):
-    return {
-        k: v
-        for k, v in (i.split('=') for i in tag_list if '=' in i)
-    }
+    return {k: v for k, v in (i.split('=') for i in tag_list if '=' in i)}
 
 
 class BlackoutRegex(PluginBase):
-
     def post_receive(self, alert):
         '''
         The regex blackouts are evaluated in the ``post_receive`` in order to
@@ -47,7 +43,7 @@ class BlackoutRegex(PluginBase):
         if 'regex_blackout' in alert_tags:
             log.debug(
                 'Checking blackout %s which used to match this alert',
-                alert_tags['regex_blackout']
+                alert_tags['regex_blackout'],
             )
             for blackout in blackouts:
                 if blackout.id == alert_tags['regex_blackout']:
@@ -57,7 +53,7 @@ class BlackoutRegex(PluginBase):
                             'Blackout %s is still active, setting alert %s '
                             'status as blackout',
                             blackout.id,
-                            alert.id
+                            alert.id,
                         )
                         alert.set_status('blackout')
                         return alert
@@ -69,72 +65,86 @@ class BlackoutRegex(PluginBase):
             log.debug(
                 'Blackout %s does no longer exist, or is not active, removing '
                 'tag and leaving status unchanged',
-                alert_tags['regex_blackout']
+                alert_tags['regex_blackout'],
             )
-            alert.untag([
-                'regex_blackout={}'.format(alert_tags['regex_blackout'])
-            ])
+            alert.untag(['regex_blackout={}'.format(alert_tags['regex_blackout'])])
             return alert
 
         # No previous regex blackout match, let's evaluate.
         # The idea is that if a blackout has a number of attributes configured,
         # in order to match, the alert must match all of these attributes.
         for blackout in blackouts:
+            # The general assumption is that a blackout has at least one of
+            # these attributes set, therefore once we try to match only when an
+            # attribute is configured, and skip to the next blackout when the
+            # matching fails.
+            match = False
             if blackout.group:
                 if not re.search(blackout.group, alert.group):
                     log.debug(
                         '%s doesn\'t match the blackout group %s',
-                        alert.group, 
-                        blackout.group
+                        alert.group,
+                        blackout.group,
                     )
                     continue
+                match = True
+                log.debug('%s matched %s', blackout.group, alert.group)
             if blackout.event:
                 if not re.search(blackout.event, alert.event):
                     log.debug(
                         '%s doesn\'t match the blackout event %s',
                         alert.event,
-                        blackout.event
+                        blackout.event,
                     )
                     continue
+                match = True
+                log.debug('%s matched %s', blackout.event, alert.event)
             if blackout.resource:
                 if not re.search(blackout.resource, alert.resource):
                     log.debug(
                         '%s doesn\'t match the blackout resource %s',
                         alert.resource,
-                        blackout.resource
+                        blackout.resource,
                     )
                     continue
+                match = True
+                log.debug('%s matched %s', blackout.resource, alert.resource)
             if blackout.service:
                 if not re.search(blackout.service[0], alert.service[0]):
                     log.debug(
                         '%s doesn\'t match the blackout service %s',
                         alert.service[0],
-                        blackout.service[0]
+                        blackout.service[0],
                     )
                     continue
+                match = True
+                log.debug('%s matched %s', blackout.service[0], alert.service[0])
             if blackout.tags and alert.tags:
                 blackout_tags = parse_tags(blackout.tags)
-                for blackout_tag, value in blackout_tags.items():
-                    if blackout_tag in alert_tags:
-                        if not re.search(value, alert_tags[blackout_tag]):
-                            log.debug(
-                                '%s (%s) doesn\'t match the blackout tag value '
-                                '%s', blackout_tag, alert_tags[blackout_tag],
-                                value
-                            )
-                            continue
-            # If still here, it means it matched the configured blackout fields,
-            # therefore, we can mark the alert with the regex_blackout tag,
-            # and set the status as blackout.
-            log.debug(
-                'Alert %s seems to match (regex) blackout %s. '
-                'Adding regex_blackout and status',
-                alert.id,
-                blackout.id
-            )
-            alert.tag(['regex_blackout={}'.format(blackout.id)])
-            alert.set_status('blackout')
-            return alert
+                if not all(
+                    [
+                        re.search(blackout_tags[blackout_tag], alert_tags[blackout_tag])
+                        for blackout_tag in blackout_tags
+                        if blackout_tag in alert_tags
+                    ]
+                ):
+                    log.debug(
+                        '%s don\'t seem to match the blackout tag(s) %s',
+                        str(alert_tags),
+                        str(blackout_tags),
+                    )
+                    continue
+                match = True
+            if match:
+                log.debug(
+                    'Alert %s seems to match (regex) blackout %s. '
+                    'Adding regex_blackout and status',
+                    alert.id,
+                    blackout.id,
+                )
+                alert.tag(['regex_blackout={}'.format(blackout.id)])
+                alert.set_status('blackout')
+                return alert
 
         return alert
 
