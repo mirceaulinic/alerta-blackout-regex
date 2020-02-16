@@ -101,6 +101,17 @@ client_mod.Client.return_value.get_blackouts.return_value = [
         duration=3600,
         id='5',
     ),
+    Blackout(
+        status='closed',
+        environment='test',
+        tags=[],
+        service=None,
+        resource='FPC.*',
+        event='FPCDown',
+        group=None,
+        duration=3600,
+        id='6',
+    ),
 ]
 
 log = logging.getLogger(__name__)
@@ -171,13 +182,13 @@ class TestEnhance(unittest.TestCase):
             event='test-event',
             group='test',
             service=['test-service'],
-            tags=['site=siteX'],
+            tags=['site=siteX', 'role=router'],
             status='open',
         )
         test_obj = BlackoutRegex()
         test = test_obj.post_receive(alert)
         self.assertEqual(test.status, 'blackout')
-        self.assertEqual(test.tags, ['site=siteX', 'regex_blackout=3'])
+        self.assertEqual(test.tags, ['site=siteX', 'role=router', 'regex_blackout=3'])
 
     def test_new_alert_no_match_tags(self):
         '''
@@ -196,6 +207,24 @@ class TestEnhance(unittest.TestCase):
         test = test_obj.post_receive(alert)
         self.assertEqual(test.status, 'open')
         self.assertEqual(test.tags, ['site=siteX', 'role=switch'])
+
+    def test_new_alert_multi_match(self):
+        '''
+        Test alert matching a regex blackout on multiple attributes.
+        '''
+        alert = Alert(
+            id='multi-match',
+            resource='FPC1',
+            event='FPCDown',
+            group='test',
+            service=['test-service'],
+            tags=['site=siteX'],
+            status='open',
+        )
+        test_obj = BlackoutRegex()
+        test = test_obj.post_receive(alert)
+        self.assertEqual(test.status, 'blackout')
+        self.assertEqual(test.tags, ['site=siteX', 'regex_blackout=6'])
 
     def test_old_alert_inactive_blackout(self):
         '''

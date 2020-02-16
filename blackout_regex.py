@@ -121,6 +121,10 @@ class BlackoutRegex(PluginBase):
                 log.debug('%s matched %s', blackout.service[0], alert.service[0])
             if blackout.tags and alert.tags:
                 blackout_tags = parse_tags(blackout.tags)
+                if not set(blackout_tags.keys()).issubset(set(alert_tags.keys())):
+                    # The blackout must have at least as many tags as the alert
+                    # in order to match.
+                    continue
                 if not all(
                     [
                         re.search(blackout_tags[blackout_tag], alert_tags[blackout_tag])
