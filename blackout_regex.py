@@ -55,7 +55,8 @@ class BlackoutRegex(PluginBase):
                             blackout.id,
                             alert.id,
                         )
-                        alert.set_status('blackout')
+                        if alert.status != 'blackout':
+                            alert.set_status('blackout')
                         return alert
             # If the blackout is no longer active, simply return
             # the alert as-is, without changing the status, but
