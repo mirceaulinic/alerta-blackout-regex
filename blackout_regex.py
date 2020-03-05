@@ -32,6 +32,11 @@ class BlackoutRegex(PluginBase):
         the alert and we're sure it didn't match the literal blackout attributes
         which is ideal to preserve backwards compatibility).
         '''
+        if not alert:
+            # It actually does happen sometimes that the Alert can be None (and
+            # perhaps something else too?) - for whatever reason.
+            return alert
+
         blackouts = client.get_blackouts()
         alert_tags = parse_tags(alert.tags)
         log.error(blackouts)
