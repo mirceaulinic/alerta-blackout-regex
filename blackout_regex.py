@@ -39,7 +39,7 @@ class BlackoutRegex(PluginBase):
 
         blackouts = client.get_blackouts()
         alert_tags = parse_tags(alert.tags)
-        log.error(blackouts)
+        log.debug(blackouts)
 
         # When an alert matches a blackout, this plugin adds a special tag
         # ``regex_blackout`` that points to the blackout ID matched.
