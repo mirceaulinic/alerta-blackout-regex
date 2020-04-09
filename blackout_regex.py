@@ -17,7 +17,7 @@ client = Client()
 
 
 def parse_tags(tag_list):
-    return {k: v for k, v in (i.split('=') for i in tag_list if '=' in i)}
+    return {k: v for k, v in (i.split('=', 1) for i in tag_list if '=' in i)}
 
 
 class BlackoutRegex(PluginBase):
