@@ -37,6 +37,10 @@ class BlackoutRegex(PluginBase):
             # perhaps something else too?) - for whatever reason.
             return alert
 
+        if alert.status == 'closed':
+            log.debug('Alert %s status is closed, ignoring', alert.id)
+            return alert
+
         blackouts = client.get_blackouts()
         alert_tags = parse_tags(alert.tags)
         log.debug(blackouts)
