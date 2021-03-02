@@ -5,13 +5,23 @@ Alerta Blackout Regex
 
 Alerta plugin to enhance the blackout system.
 '''
+import os
 import re
+import json
+import time
+import shutil
 import logging
+import tempfile
 
 from alertaclient.api import Client
 from alerta.plugins import PluginBase
+from alertaclient.models.blackout import Blackout
 
 log = logging.getLogger('alerta.plugins.blackout_regex')
+
+CACHE_ENABLED = os.getenv('ALERTA_BLACKOUT_CACHE_ENABLED', True)
+CACHE_FILE = os.getenv('ALERTA_BLACKOUT_CACHE_FILE', '/var/cache/alerta/blackout_regex')
+CACHE_TIME = os.getenv('ALERTA_BLACKOUT_CACHE_TIME', 60)  # seconds
 
 client = Client()
 
@@ -21,7 +31,50 @@ def parse_tags(tag_list):
 
 
 class BlackoutRegex(PluginBase):
-    def post_receive(self, alert):
+    def _blackout_obj(self, blackouts):
+        return [Blackout.parse(blackout) for blackout in blackouts]
+
+    def _fetch_and_cache(self):
+        http_get = client.http.get('/blackouts')
+        blackouts = http_get['blackouts']
+        log.debug('Retrieved raw blackouts from the API:')
+        log.debug(blackouts)
+        if CACHE_ENABLED not in (True, 'True', 'true', '1', 1):
+            return self._blackout_obj(blackouts)
+        cachedir = os.path.dirname(CACHE_FILE)
+        if not os.path.exists(cachedir):
+            try:
+                os.makedirs(cachedir)
+            except OSError:
+                log.error('Unable to create the cache directory', exc_info=True)
+                return blackouts
+        try:
+            tmpfh, tmpfname = tempfile.mkstemp(dir=cachedir)
+            os.close(tmpfh)
+            with open(tmpfname, 'w+b') as fh_:
+                fh_.write(json.dumps(blackouts).encode('utf-8'))
+            shutil.move(tmpfname, CACHE_FILE)
+        except Exception:
+            log.error('Unable to dump the blackouts cache', exc_info=True)
+        return self._blackout_obj(blackouts)
+
+    def _gather_cache(self):
+        if not os.path.exists(CACHE_FILE):
+            return self._fetch_and_cache()
+        stats = os.stat(CACHE_FILE)
+        if time.time() - stats.st_ctime > CACHE_TIME:
+            log.debug('Time to refresh the cache...')
+            return self._fetch_and_cache()
+        blackouts = []
+        try:
+            with open(CACHE_FILE) as fp:
+                blackouts = json.loads(fp.read())
+        except Exception:
+            log.error('Unable to read from the cache', exc_info=True)
+            return self._fetch_and_cache()
+        return self._blackout_obj(blackouts)
+
+    def _apply_blackout(self, alert):
         '''
         The regex blackouts are evaluated in the ``post_receive`` in order to
         have the alert already correlated, therefore provide us with the real
@@ -41,9 +94,9 @@ class BlackoutRegex(PluginBase):
             log.debug('Alert %s status is closed, ignoring', alert.id)
             return alert
 
-        blackouts = client.get_blackouts()
+        blackouts = self._gather_cache()
+
         alert_tags = parse_tags(alert.tags)
-        log.debug(blackouts)
 
         # When an alert matches a blackout, this plugin adds a special tag
         # ``regex_blackout`` that points to the blackout ID matched.
@@ -56,7 +109,6 @@ class BlackoutRegex(PluginBase):
             )
             for blackout in blackouts:
                 if blackout.id == alert_tags['regex_blackout']:
-                    log.debug('Found blackout %s', blackout.id)
                     if blackout.status == 'active':
                         log.debug(
                             'Blackout %s is still active, setting alert %s '
@@ -65,7 +117,7 @@ class BlackoutRegex(PluginBase):
                             alert.id,
                         )
                         if alert.status != 'blackout':
-                            alert.set_status('blackout')
+                            alert.status = 'blackout'
                         return alert
             # If the blackout is no longer active, simply return
             # the alert as-is, without changing the status, but
@@ -77,7 +129,7 @@ class BlackoutRegex(PluginBase):
                 'tag and leaving status unchanged',
                 alert_tags['regex_blackout'],
             )
-            alert.untag(['regex_blackout={}'.format(alert_tags['regex_blackout'])])
+            alert.tags = [tag for tag in alert.tags if 'regex_blackout=' not in tag]
             return alert
 
         # No previous regex blackout match, let's evaluate.
@@ -156,13 +208,16 @@ class BlackoutRegex(PluginBase):
                     alert.id,
                     blackout.id,
                 )
-                alert.tag(['regex_blackout={}'.format(blackout.id)])
-                alert.set_status('blackout')
+                alert.tags.extend(['regex_blackout={}'.format(blackout.id)])
+                alert.status = 'blackout'
                 return alert
 
         return alert
 
     def pre_receive(self, alert):
+        return self._apply_blackout(alert)
+
+    def post_receive(self, alert):
         return alert
 
     def status_change(self, alert, status, text):

@@ -3,3 +3,4 @@ mock==4.0.1
 nose==1.3.7
 black==19.10b0
 pylama==7.7.1
+alerta==8.4.0
