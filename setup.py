@@ -12,7 +12,7 @@ with codecs.open('README.rst', 'r', encoding='utf8') as file:
 
 setup(
     name='alerta-blackout-regex',
-    version='1.0.5',
+    version='2.0.0',
     author='Mircea Ulinic',
     author_email='ping@mirceaulinic.net',
     py_modules=['blackout_regex'],
