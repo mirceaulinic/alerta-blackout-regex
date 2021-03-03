@@ -23,7 +23,7 @@ verify whether the blackout referenced is still active.
     sent to other plugins, which has resulted in confusing behaviour.
 
     That said, the plugin has been changed to process the alert in 
-    `pre_receive` and therefore before the alert has been correlated. As the 
+    ``pre_receive`` and therefore before the alert has been correlated. As the 
     Blackouts are retrieved from the Alerta API as unfortunately there's no 
     other way to gather the Blackouts from a plugin via other internal 
     mechanisms, processing each and every alert throguh `pre_receive` would put 
@@ -58,22 +58,23 @@ configuration file or as environment variables.
 
     To ensure this plugin won't affect the existing Blackouts you may have in 
     place, it is recommended to list the `blackout_regex` plugin *after* the 
-    native `blackout` plugin in the `PLUGINS` configuration option or 
+    native ``blackout`` plugin in the ``PLUGINS`` configuration option or 
     environment variable.
 
 To model the caching behaviour, from version 2.0.0 onwards, you can set the 
 following environment variables:
 
-- `ALERTA_BLACKOUT_CACHE_ENABLED` - boolean value, by default `True`; values that 
-  equally provide the `True` logical value: `"True"`, `"true"`, `"1"`, `1`.
-- `ALERTA_BLACKOUT_CACHE_FILE` - the location where to cache the blackouts into 
-  a file. By default: `/var/cache/alerta/blackout_regex`. Alerta needs writing 
-  access to that directory (or at least rights to be able to create the 
+- ``ALERTA_BLACKOUT_CACHE_ENABLED`` - boolean value, by default ``True``; values
+  that equally provide the ``True`` logical value: ``"True"``, ``"true"``,
+  ``"1"``, ``1``.
+- ``ALERTA_BLACKOUT_CACHE_FILE`` - the location where to cache the blackouts
+  into a file. By default: ``/var/cache/alerta/blackout_regex``. Alerta needs
+  writing access to that directory (or at least rights to be able to create the 
   directory), otherwise it'll raise an error; the plugin can go ahead with it, 
   but then it won't be able to cache the Blackouts which may result in an 
   increased workload on your Alerta API.
-- `ALERTA_BLACKOUT_CACHE_TIME` - the amount of time to cache the Blackouts for, 
-  in seconds. The default value is 60 seconds.
+- ``ALERTA_BLACKOUT_CACHE_TIME`` - the amount of time to cache the Blackouts
+  for, in seconds. The default value is 60 seconds.
 
 References
 ----------
