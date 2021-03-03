@@ -3,15 +3,18 @@ import sys
 import logging
 import unittest
 
-from mock import Mock
+from mock import MagicMock
 
-client_mod = sys.modules['alertaclient.api'] = Mock()
-client_mod.Client = Mock()
+client_mod = sys.modules['alertaclient.api'] = MagicMock()
+client_mod.Client = MagicMock()
 
-plugins_mod = sys.modules['alerta.plugins'] = Mock()
-plugins_mod.PluginBase = Mock
+plugins_mod = sys.modules['alerta.plugins'] = MagicMock()
+plugins_mod.PluginBase = MagicMock
 
+import blackout_regex
 from blackout_regex import BlackoutRegex  # pylama: ignore=E402
+
+blackout_regex.CACHE_ENABLED = False
 
 
 class Model:
@@ -33,7 +36,9 @@ class Model:
 
 
 class Blackout(Model):
-    pass
+    def parse(self, data):
+        for field, value in data.items():
+            setattr(self, field, data)
 
 
 class Alert(Model):
@@ -49,70 +54,79 @@ class Alert(Model):
         self.status = status
 
 
-client_mod.Client.return_value.get_blackouts.return_value = [
-    Blackout(
-        environment='test',
-        resource=r'test\d',
-        service=None,
-        event=None,
-        group=None,
-        tags=[],
-        duration=3600,
-        id='1',
-    ),
-    Blackout(
-        environment='test',
-        service=['service-([a-zA-Z])'],
-        resource=None,
-        event=None,
-        group=None,
-        tags=[],
-        duration=3600,
-        id='2',
-    ),
-    Blackout(
-        environment='test',
-        tags=['site=site.*', 'role=router'],
-        service=None,
-        resource=None,
-        event=None,
-        group=None,
-        duration=3600,
-        id='3',
-    ),
-    Blackout(
-        environment='test',
-        tags=['site=site.*', 'role=firewall'],
-        service=None,
-        resource=None,
-        event=None,
-        group=None,
-        duration=3600,
-        id='4',
-    ),
-    Blackout(
-        status='closed',
-        environment='test',
-        tags=['site=site.*', 'role=router'],
-        service=None,
-        resource=None,
-        event=None,
-        group=None,
-        duration=3600,
-        id='5',
-    ),
-    Blackout(
-        status='closed',
-        environment='test',
-        tags=[],
-        service=None,
-        resource='FPC.*',
-        event='FPCDown',
-        group=None,
-        duration=3600,
-        id='6',
-    ),
-]
+client_mod.Client.return_value.http.get.return_value = {
+    'blackouts': [
+        {
+            'status': 'active',
+            'environment': 'test',
+            'tags': [],
+            'service': [],
+            'resource': r'test\d',
+            'event': None,
+            'group': None,
+            'duration': 3600,
+            'id': '1',
+        },
+        {
+            'status': 'active',
+            'environment': 'test',
+            'tags': [],
+            'service': ['service-([a-zA-Z])'],
+            'resource': None,
+            'event': None,
+            'group': None,
+            'duration': 3600,
+            'id': '2',
+        },
+        {
+            'status': 'active',
+            'environment': 'test',
+            'tags': ['site=site.*', 'role=router'],
+            'service': [],
+            'resource': None,
+            'event': None,
+            'group': None,
+            'duration': 3600,
+            'id': '3',
+        },
+        {
+            'status': 'active',
+            'environment': 'test',
+            'tags': ['site=site.*', 'role=firewall'],
+            'service': [],
+            'resource': None,
+            'event': None,
+            'group': None,
+            'duration': 3600,
+            'id': '4',
+        },
+        {
+            'status': 'closed',
+            'environment': 'test',
+            'tags': ['site=site.*', 'role=router'],
+            'service': [],
+            'resource': None,
+            'event': None,
+            'group': None,
+            'duration': 3600,
+            'endTime': '1985-03-05T22:45:27.425Z',
+            'id': '5',
+        },
+        {
+            'status': 'closed',
+            'environment': 'test',
+            'tags': [],
+            'service': [],
+            'resource': 'FPC.*',
+            'event': 'FPCDown',
+            'group': None,
+            'duration': 3600,
+            'endTime': '1985-03-05T22:45:27.425Z',
+            'id': '6',
+        },
+    ]
+}
+
 
 log = logging.getLogger(__name__)
 
@@ -132,7 +146,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'open')
         self.assertEqual(test.tags, [])
 
@@ -150,7 +164,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'blackout')
         self.assertEqual(test.tags, ['regex_blackout=1'])
 
@@ -168,7 +182,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'blackout')
         self.assertEqual(test.tags, ['regex_blackout=2'])
 
@@ -186,7 +200,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'blackout')
         self.assertEqual(test.tags, ['site=siteX', 'role=router', 'regex_blackout=3'])
 
@@ -204,7 +218,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'open')
         self.assertEqual(test.tags, ['site=siteX', 'role=switch'])
 
@@ -222,7 +236,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'blackout')
         self.assertEqual(test.tags, ['site=siteX', 'regex_blackout=6'])
 
@@ -240,7 +254,7 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'open')
         self.assertEqual(test.tags, ['site=siteX'])
 
@@ -258,6 +272,6 @@ class TestEnhance(unittest.TestCase):
             status='open',
         )
         test_obj = BlackoutRegex()
-        test = test_obj.post_receive(alert)
+        test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'open')
         self.assertEqual(test.tags, ['site=siteX'])
