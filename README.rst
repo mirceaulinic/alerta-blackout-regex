@@ -14,7 +14,7 @@ ID of the matched blackout, e.g.,
 alert is fired again, there's no need to verify the matching again, but simply
 verify whether the blackout referenced is still active.
 
-.. versionchanged:: 2.0.0
+.. important::
 
     Beginning with version 2.0.0, the behaviour has changed, and instead of 
     evaluating the alert into the `post_receive` hook, this plugin now 
