@@ -39,10 +39,11 @@ class BlackoutRegex(PluginBase):
             http_get = client.http.get('/blackouts')
         except Exception:
             log.error('Unable to retrieve the Blackouts from the API', exc_info=True)
-            return []
-        blackouts = http_get['blackouts']
-        log.debug('Retrieved raw blackouts from the API:')
-        log.debug(blackouts)
+            blackouts = []
+        else:
+            blackouts = http_get['blackouts']
+            log.debug('Retrieved raw blackouts from the API:')
+            log.debug(blackouts)
         if CACHE_ENABLED not in (True, 'True', 'true', '1', 1):
             return self._blackout_obj(blackouts)
         cachedir = os.path.dirname(CACHE_FILE)
