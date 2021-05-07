@@ -35,7 +35,11 @@ class BlackoutRegex(PluginBase):
         return [Blackout.parse(blackout) for blackout in blackouts]
 
     def _fetch_and_cache(self):
-        http_get = client.http.get('/blackouts')
+        try:
+            http_get = client.http.get('/blackouts')
+        except Exception:
+            log.error('Unable to retrieve the Blackouts from the API', exc_info=True)
+            return []
         blackouts = http_get['blackouts']
         log.debug('Retrieved raw blackouts from the API:')
         log.debug(blackouts)
