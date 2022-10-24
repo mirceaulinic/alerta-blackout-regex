@@ -5,13 +5,8 @@ Alerta Blackout Regex
 
 Alerta plugin to enhance the blackout system.
 """
-import os
 import re
-import json
-import time
-import shutil
 import logging
-import tempfile
 
 from alerta.app import db
 from alerta.plugins import PluginBase

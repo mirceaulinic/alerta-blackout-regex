@@ -3,7 +3,7 @@ import sys
 import logging
 import unittest
 
-from mock import Mock, MagicMock
+from mock import MagicMock
 
 app = sys.modules["alerta.app"] = MagicMock()
 app.db = MagicMock()
@@ -136,7 +136,6 @@ plugins_mod = sys.modules["alerta.plugins"] = MagicMock()
 plugins_mod.PluginBase = MagicMock
 
 
-import blackout_regex
 from blackout_regex import BlackoutRegex  # pylama: ignore=E402
 
 log = logging.getLogger(__name__)
