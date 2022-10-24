@@ -33,6 +33,14 @@ verify whether the blackout referenced is still active.
     environment variables. See more details below, under the _Configuration_ 
     section.
 
+.. note::
+
+    Starting with version 3.0.0 onwards, the plugin will gather the list of 
+    Blackouts straight from the database (instead of using the API, as 
+    previously). This should normally improve reliability, but as there's no
+    caching involved, every alert notification coming in (before being 
+    evaluated and correlated) will cause a DB query.
+
 Installation
 ------------
 
@@ -61,21 +69,6 @@ configuration file or as environment variables.
     native ``blackout`` plugin in the ``PLUGINS`` configuration option or 
     environment variable.
 
-To model the caching behaviour, from version 2.0.0 onwards, you can set the 
-following environment variables:
-
-- ``ALERTA_BLACKOUT_CACHE_ENABLED`` - boolean value, by default ``True``; values
-  that equally provide the ``True`` logical value: ``"True"``, ``"true"``,
-  ``"1"``, ``1``.
-- ``ALERTA_BLACKOUT_CACHE_FILE`` - the location where to cache the blackouts
-  into a file. By default: ``/var/cache/alerta/blackout_regex``. Alerta needs
-  writing access to that directory (or at least rights to be able to create the 
-  directory), otherwise it'll raise an error; the plugin can go ahead with it, 
-  but then it won't be able to cache the Blackouts which may result in an 
-  increased workload on your Alerta API.
-- ``ALERTA_BLACKOUT_CACHE_TIME`` - the amount of time to cache the Blackouts
-  for, in seconds. The default value is 60 seconds.
-
 References
 ----------
 
@@ -85,4 +78,4 @@ References
 License
 -------
 
-Copyright (c) 2020-2021 Mircea Ulinic. Available under the Apache License 2.0.
+Copyright (c) 2020-2022 Mircea Ulinic. Available under the Apache License 2.0.
