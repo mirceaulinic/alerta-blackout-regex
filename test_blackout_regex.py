@@ -3,18 +3,92 @@ import sys
 import logging
 import unittest
 
-from mock import MagicMock
+from mock import Mock, MagicMock
 
-client_mod = sys.modules['alertaclient.api'] = MagicMock()
-client_mod.Client = MagicMock()
+app = sys.modules["alerta.app"] = MagicMock()
+app.db = MagicMock()
 
-plugins_mod = sys.modules['alerta.plugins'] = MagicMock()
-plugins_mod.PluginBase = MagicMock
-
-import blackout_regex
-from blackout_regex import BlackoutRegex  # pylama: ignore=E402
-
-blackout_regex.CACHE_ENABLED = False
+BLACKOUTS = [
+    {
+        "status": "active",
+        "environment": "test",
+        "tags": [],
+        "service": [],
+        "resource": r"test\d",
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "1",
+    },
+    {
+        "status": "active",
+        "environment": "test",
+        "tags": [],
+        "service": ["service-([a-zA-Z])"],
+        "resource": None,
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "2",
+    },
+    {
+        "status": "active",
+        "environment": "test",
+        "tags": ["site=site.*", "role=router"],
+        "service": [],
+        "resource": None,
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "3",
+    },
+    {
+        "status": "active",
+        "environment": "test",
+        "tags": ["site=site.*", "role=firewall"],
+        "service": [],
+        "resource": None,
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "4",
+    },
+    {
+        "status": "closed",
+        "environment": "test",
+        "tags": ["site=site.*", "role=router"],
+        "service": [],
+        "resource": None,
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "endTime": "1985-03-05T22:45:27.425Z",
+        "id": "5",
+    },
+    {
+        "status": "closed",
+        "environment": r"(rgx|env)",
+        "tags": [],
+        "service": ["test-.*"],
+        "resource": "FPC.*",
+        "event": "FPCDown",
+        "group": None,
+        "duration": 3600,
+        "endTime": "1985-03-05T22:45:27.425Z",
+        "id": "6",
+    },
+    {
+        "status": "active",
+        "environment": r"(rgx|env)",
+        "tags": [],
+        "service": [],
+        "resource": None,
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "7",
+    },
+]
 
 
 class Model:
@@ -23,22 +97,20 @@ class Model:
             setattr(self, arg, val)
 
     def __str__(self):
-        return '{name}({attrs})'.format(
+        return "{name}({attrs})".format(
             name=self.__class__.__name__,
-            attrs=', '.join(
+            attrs=", ".join(
                 [
-                    '{}={}'.format(attr, getattr(self, attr))
+                    "{}={}".format(attr, getattr(self, attr))
                     for attr in dir(self)
-                    if not attr.startswith('__')
+                    if not attr.startswith("__")
                 ]
             ),
         )
 
 
 class Blackout(Model):
-    def parse(self, data):
-        for field, value in data.items():
-            setattr(self, field, data)
+    pass
 
 
 class Alert(Model):
@@ -54,255 +126,190 @@ class Alert(Model):
         self.status = status
 
 
-client_mod.Client.return_value.http.get.return_value = {
-    'blackouts': [
-        {
-            'status': 'active',
-            'environment': r'(rgx|env)',
-            'tags': [],
-            'service': [],
-            'resource': None,
-            'event': None,
-            'group': None,
-            'duration': 3600,
-            'id': '10',
-        },
-        {
-            'status': 'active',
-            'environment': 'test',
-            'tags': [],
-            'service': [],
-            'resource': r'test\d',
-            'event': None,
-            'group': None,
-            'duration': 3600,
-            'id': '1',
-        },
-        {
-            'status': 'active',
-            'environment': 'test',
-            'tags': [],
-            'service': ['service-([a-zA-Z])'],
-            'resource': None,
-            'event': None,
-            'group': None,
-            'duration': 3600,
-            'id': '2',
-        },
-        {
-            'status': 'active',
-            'environment': 'test',
-            'tags': ['site=site.*', 'role=router'],
-            'service': [],
-            'resource': None,
-            'event': None,
-            'group': None,
-            'duration': 3600,
-            'id': '3',
-        },
-        {
-            'status': 'active',
-            'environment': 'test',
-            'tags': ['site=site.*', 'role=firewall'],
-            'service': [],
-            'resource': None,
-            'event': None,
-            'group': None,
-            'duration': 3600,
-            'id': '4',
-        },
-        {
-            'status': 'closed',
-            'environment': 'test',
-            'tags': ['site=site.*', 'role=router'],
-            'service': [],
-            'resource': None,
-            'event': None,
-            'group': None,
-            'duration': 3600,
-            'endTime': '1985-03-05T22:45:27.425Z',
-            'id': '5',
-        },
-        {
-            'status': 'closed',
-            'environment': r'(rgx|env)',
-            'tags': [],
-            'service': ['test-.*'],
-            'resource': 'FPC.*',
-            'event': 'FPCDown',
-            'group': None,
-            'duration': 3600,
-            'endTime': '1985-03-05T22:45:27.425Z',
-            'id': '6',
-        },
-    ]
-}
+def _get_blackouts(**kwargs):
+    return [Blackout(**blackout) for blackout in BLACKOUTS]
 
+
+app.db.get_blackouts = _get_blackouts
+
+plugins_mod = sys.modules["alerta.plugins"] = MagicMock()
+plugins_mod.PluginBase = MagicMock
+
+
+import blackout_regex
+from blackout_regex import BlackoutRegex  # pylama: ignore=E402
 
 log = logging.getLogger(__name__)
 
 
 class TestEnhance(unittest.TestCase):
     def test_new_alert_no_match(self):
-        '''
+        """
         Test alert not matching a regex blackout.
-        '''
+        """
         alert = Alert(
-            id='no-match',
-            resource='test::resource',
-            event='test-event',
-            group='test',
-            service=['test-service'],
-            tags=[],
-            status='open',
+            id="no-match",
+            environment="test",
+            resource="test::resource",
+            event="test-event",
+            group="test",
+            service=["test-service"],
+            tags=["test-tag"],
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'open')
-        self.assertEqual(test.tags, [])
+        self.assertEqual(test.status, "open")
+        self.assertEqual(test.tags, ["test-tag"])
 
     def test_new_alert_match_environment(self):
-        '''
+        """
         Test alert matching a regex blackout on the environment field.
-        '''
+        """
         alert = Alert(
-            id='match-env',
-            environment='rgx'
-            resource='test10',
-            event='test-event',
-            group='test',
-            service=['test-service'],
+            id="match-env",
+            environment="rgx",
+            resource="test10",
+            event="test-event",
+            group="test",
+            service=["test-service"],
             tags=[],
-            status='open',
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'blackout')
-        self.assertEqual(test.tags, ['regex_blackout=10'])
+        self.assertEqual(test.status, "blackout")
+        self.assertEqual(test.tags, ["regex_blackout=7"])
 
     def test_new_alert_match_resource(self):
-        '''
+        """
         Test alert matching a regex blackout on the resource field.
-        '''
+        """
         alert = Alert(
-            id='match-resource',
-            resource='test1',
-            event='test-event',
-            group='test',
-            service=['test-service'],
+            id="match-resource",
+            environment="test",
+            resource="test1",
+            event="test-event",
+            group="test",
+            service=["test-service"],
             tags=[],
-            status='open',
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'blackout')
-        self.assertEqual(test.tags, ['regex_blackout=1'])
+        self.assertEqual(test.status, "blackout")
+        self.assertEqual(test.tags, ["regex_blackout=1"])
 
     def test_new_alert_match_service(self):
-        '''
+        """
         Test alert matching a regex blackout on the service field.
-        '''
+        """
         alert = Alert(
-            id='match-service',
-            resource='test::resource',
-            event='test-event',
-            group='test',
-            service=['service-blah'],
+            id="match-service",
+            environment="test",
+            resource="test::resource",
+            event="test-event",
+            group="test",
+            service=["service-blah"],
             tags=[],
-            status='open',
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'blackout')
-        self.assertEqual(test.tags, ['regex_blackout=2'])
+        self.assertEqual(test.status, "blackout")
+        self.assertEqual(test.tags, ["regex_blackout=2"])
 
     def test_new_alert_match_tag(self):
-        '''
+        """
         Test alert matching a regex blackout on the tag(s).
-        '''
+        """
         alert = Alert(
-            id='match-tag',
-            resource='test::resource',
-            event='test-event',
-            group='test',
-            service=['test-service'],
-            tags=['site=siteX', 'role=router'],
-            status='open',
+            id="match-tag",
+            environment="test",
+            resource="test::resource",
+            event="test-event",
+            group="test",
+            service=["test-service"],
+            tags=["site=siteX", "role=router"],
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'blackout')
-        self.assertEqual(test.tags, ['site=siteX', 'role=router', 'regex_blackout=3'])
+        self.assertEqual(test.status, "blackout")
+        self.assertEqual(test.tags, ["site=siteX", "role=router", "regex_blackout=3"])
 
     def test_new_alert_no_match_tags(self):
-        '''
+        """
         Test alert that doesn't match as not all the tags match.
-        '''
+        """
         alert = Alert(
-            id='no-match-tags',
-            resource='test::resource',
-            event='test-event',
-            group='test',
-            service=['test-service'],
-            tags=['site=siteX', 'role=switch'],
-            status='open',
+            id="no-match-tags",
+            environment="test",
+            resource="test::resource",
+            event="test-event",
+            group="test",
+            service=["test-service"],
+            tags=["site=siteX", "role=switch"],
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'open')
-        self.assertEqual(test.tags, ['site=siteX', 'role=switch'])
+        self.assertEqual(test.status, "open")
+        self.assertEqual(test.tags, ["site=siteX", "role=switch"])
 
     def test_new_alert_multi_match(self):
-        '''
+        """
         Test alert matching a regex blackout on multiple attributes.
-        '''
+        """
         alert = Alert(
-            id='multi-match',
-            environment='rgx'
-            resource='FPC1',
-            event='FPCDown',
-            group='test',
-            service=['test-service'],
-            tags=['site=siteX'],
-            status='open',
+            id="multi-match",
+            environment="rgx",
+            resource="FPC1",
+            event="FPCDown",
+            group="test",
+            service=["test-service"],
+            tags=["site=siteX"],
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'blackout')
-        self.assertEqual(test.tags, ['site=siteX', 'regex_blackout=6'])
+        self.assertEqual(test.status, "blackout")
+        self.assertEqual(test.tags, ["site=siteX", "regex_blackout=6"])
 
     def test_old_alert_inactive_blackout(self):
-        '''
+        """
         Test an existing alert whose associated blackout is currently inactive.
-        '''
+        """
         alert = Alert(
-            id='old-alert',
-            resource='test::resource',
-            event='test-event',
-            group='test',
-            service=['test-service'],
-            tags=['site=siteX', 'regex_blackout=5'],
-            status='open',
+            id="old-alert",
+            environment="test",
+            resource="test::resource",
+            event="test-event",
+            group="test",
+            service=["test-service"],
+            tags=["site=siteX", "regex_blackout=5"],
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'open')
-        self.assertEqual(test.tags, ['site=siteX'])
+        self.assertEqual(test.status, "open")
+        self.assertEqual(test.tags, ["site=siteX"])
 
     def test_old_alert_removed_blackout(self):
-        '''
+        """
         Test an existing alert whose associated blackout no longer exists.
-        '''
+        """
         alert = Alert(
-            id='old-alert',
-            resource='test::resource',
-            event='test-event',
-            group='test',
-            service=['test-service'],
-            tags=['site=siteX', 'regex_blackout=99'],
-            status='open',
+            id="old-alert",
+            environment="test",
+            resource="test::resource",
+            event="test-event",
+            group="test",
+            service=["test-service"],
+            tags=["site=siteX", "regex_blackout=99"],
+            status="open",
         )
         test_obj = BlackoutRegex()
         test = test_obj.pre_receive(alert)
-        self.assertEqual(test.status, 'open')
-        self.assertEqual(test.tags, ['site=siteX'])
+        self.assertEqual(test.status, "open")
+        self.assertEqual(test.tags, ["site=siteX"])
