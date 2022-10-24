@@ -58,6 +58,17 @@ client_mod.Client.return_value.http.get.return_value = {
     'blackouts': [
         {
             'status': 'active',
+            'environment': r'(rgx|env)',
+            'tags': [],
+            'service': [],
+            'resource': None,
+            'event': None,
+            'group': None,
+            'duration': 3600,
+            'id': '10',
+        },
+        {
+            'status': 'active',
             'environment': 'test',
             'tags': [],
             'service': [],
@@ -114,9 +125,9 @@ client_mod.Client.return_value.http.get.return_value = {
         },
         {
             'status': 'closed',
-            'environment': 'test',
+            'environment': r'(rgx|env)',
             'tags': [],
-            'service': [],
+            'service': ['test-.*'],
             'resource': 'FPC.*',
             'event': 'FPCDown',
             'group': None,
@@ -149,6 +160,25 @@ class TestEnhance(unittest.TestCase):
         test = test_obj.pre_receive(alert)
         self.assertEqual(test.status, 'open')
         self.assertEqual(test.tags, [])
+
+    def test_new_alert_match_environment(self):
+        '''
+        Test alert matching a regex blackout on the environment field.
+        '''
+        alert = Alert(
+            id='match-env',
+            environment='rgx'
+            resource='test10',
+            event='test-event',
+            group='test',
+            service=['test-service'],
+            tags=[],
+            status='open',
+        )
+        test_obj = BlackoutRegex()
+        test = test_obj.pre_receive(alert)
+        self.assertEqual(test.status, 'blackout')
+        self.assertEqual(test.tags, ['regex_blackout=10'])
 
     def test_new_alert_match_resource(self):
         '''
@@ -228,6 +258,7 @@ class TestEnhance(unittest.TestCase):
         '''
         alert = Alert(
             id='multi-match',
+            environment='rgx'
             resource='FPC1',
             event='FPCDown',
             group='test',
