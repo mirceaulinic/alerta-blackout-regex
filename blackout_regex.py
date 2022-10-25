@@ -1,86 +1,38 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 Alerta Blackout Regex
 =====================
 
 Alerta plugin to enhance the blackout system.
-'''
-import os
+"""
 import re
-import json
-import time
-import shutil
 import logging
-import tempfile
 
-from alertaclient.api import Client
+from alerta.app import db
 from alerta.plugins import PluginBase
-from alertaclient.models.blackout import Blackout
 
-log = logging.getLogger('alerta.plugins.blackout_regex')
-
-CACHE_ENABLED = os.getenv('ALERTA_BLACKOUT_CACHE_ENABLED', True)
-CACHE_FILE = os.getenv('ALERTA_BLACKOUT_CACHE_FILE', '/var/cache/alerta/blackout_regex')
-CACHE_TIME = os.getenv('ALERTA_BLACKOUT_CACHE_TIME', 60)  # seconds
-
-client = Client()
+log = logging.getLogger("alerta.plugins.blackout_regex")
 
 
 def parse_tags(tag_list):
-    return {k: v for k, v in (i.split('=', 1) for i in tag_list if '=' in i)}
+    return {k: v for k, v in (i.split("=", 1) for i in tag_list if "=" in i)}
 
 
 class BlackoutRegex(PluginBase):
-    def _blackout_obj(self, blackouts):
-        return [Blackout.parse(blackout) for blackout in blackouts]
-
-    def _fetch_and_cache(self):
+    def _fetch_blackouts(self):
         try:
-            http_get = client.http.get('/blackouts')
-        except Exception:
-            log.error('Unable to retrieve the Blackouts from the API', exc_info=True)
-            blackouts = []
-        else:
-            blackouts = http_get['blackouts']
-            log.debug('Retrieved raw blackouts from the API:')
+            count = db.get_blackouts_count()
+            log.debug("There are %d Blackouts currently open", count)
+            blackouts = db.get_blackouts(page=1, page_size=count)
+            log.debug("Retrieved Blackouts from the DB:")
             log.debug(blackouts)
-        if CACHE_ENABLED not in (True, 'True', 'true', '1', 1):
-            return self._blackout_obj(blackouts)
-        cachedir = os.path.dirname(CACHE_FILE)
-        if not os.path.exists(cachedir):
-            try:
-                os.makedirs(cachedir)
-            except OSError:
-                log.error('Unable to create the cache directory', exc_info=True)
-                return blackouts
-        try:
-            tmpfh, tmpfname = tempfile.mkstemp(dir=cachedir)
-            os.close(tmpfh)
-            with open(tmpfname, 'w+b') as fh_:
-                fh_.write(json.dumps(blackouts).encode('utf-8'))
-            shutil.move(tmpfname, CACHE_FILE)
         except Exception:
-            log.error('Unable to dump the blackouts cache', exc_info=True)
-        return self._blackout_obj(blackouts)
-
-    def _gather_cache(self):
-        if not os.path.exists(CACHE_FILE):
-            return self._fetch_and_cache()
-        stats = os.stat(CACHE_FILE)
-        if time.time() - stats.st_ctime > CACHE_TIME:
-            log.debug('Time to refresh the cache...')
-            return self._fetch_and_cache()
-        blackouts = []
-        try:
-            with open(CACHE_FILE) as fp:
-                blackouts = json.loads(fp.read())
-        except Exception:
-            log.error('Unable to read from the cache', exc_info=True)
-            return self._fetch_and_cache()
-        return self._blackout_obj(blackouts)
+            log.debug("Unable to retrieve the Blackouts from the DB", exc_info=True)
+            blackouts = []
+        return blackouts
 
     def _apply_blackout(self, alert):
-        '''
+        """
         The regex blackouts are evaluated in the ``post_receive`` in order to
         have the alert already correlated, therefore provide us with the real
         Alert ID (after being correlated, and not just a random fresh ID), the
@@ -89,17 +41,17 @@ class BlackoutRegex(PluginBase):
         alert it won't get to this point - if it gets here we therefore evaluate
         the alert and we're sure it didn't match the literal blackout attributes
         which is ideal to preserve backwards compatibility).
-        '''
+        """
         if not alert:
             # It actually does happen sometimes that the Alert can be None (and
             # perhaps something else too?) - for whatever reason.
             return alert
 
-        if alert.status == 'closed':
-            log.debug('Alert %s status is closed, ignoring', alert.id)
+        if alert.status == "closed":
+            log.debug("Alert %s status is closed, ignoring", alert.id)
             return alert
 
-        blackouts = self._gather_cache()
+        blackouts = self._fetch_blackouts()
 
         alert_tags = parse_tags(alert.tags)
 
@@ -107,22 +59,22 @@ class BlackoutRegex(PluginBase):
         # ``regex_blackout`` that points to the blackout ID matched.
         # This facilitates the blackout matching, by simply checking if the
         # blackout is still open.
-        if 'regex_blackout' in alert_tags:
+        if "regex_blackout" in alert_tags:
             log.debug(
-                'Checking blackout %s which used to match this alert',
-                alert_tags['regex_blackout'],
+                "Checking blackout %s which used to match this alert",
+                alert_tags["regex_blackout"],
             )
             for blackout in blackouts:
-                if blackout.id == alert_tags['regex_blackout']:
-                    if blackout.status == 'active':
+                if blackout.id == alert_tags["regex_blackout"]:
+                    if blackout.status == "active":
                         log.debug(
-                            'Blackout %s is still active, setting alert %s '
-                            'status as blackout',
+                            "Blackout %s is still active, setting alert %s "
+                            "status as blackout",
                             blackout.id,
                             alert.id,
                         )
-                        if alert.status != 'blackout':
-                            alert.status = 'blackout'
+                        if alert.status != "blackout":
+                            alert.status = "blackout"
                         return alert
             # If the blackout is no longer active, simply return
             # the alert as-is, without changing the status, but
@@ -130,11 +82,11 @@ class BlackoutRegex(PluginBase):
             # fired again, we'll know that it does no longer match
             # an active blackout.
             log.debug(
-                'Blackout %s does no longer exist, or is not active, removing '
-                'tag and leaving status unchanged',
-                alert_tags['regex_blackout'],
+                "Blackout %s does no longer exist, or is not active, removing "
+                "tag and leaving status unchanged",
+                alert_tags["regex_blackout"],
             )
-            alert.tags = [tag for tag in alert.tags if 'regex_blackout=' not in tag]
+            alert.tags = [tag for tag in alert.tags if "regex_blackout=" not in tag]
             return alert
 
         # No previous regex blackout match, let's evaluate.
@@ -145,47 +97,70 @@ class BlackoutRegex(PluginBase):
             # these attributes set, therefore once we try to match only when an
             # attribute is configured, and skip to the next blackout when the
             # matching fails.
+            log.debug("Evaluating blackout")
+            log.debug(blackout)
             match = False
+            if blackout.environment:
+                if not re.search(blackout.environment, alert.environment):
+                    log.debug(
+                        "%s doesn't match the blackout environment %s",
+                        alert.environment,
+                        blackout.environment,
+                    )
+                    continue
+                match = True
+                log.debug(
+                    "%s matched %s",
+                    blackout.environment,
+                    alert.environment,
+                )
             if blackout.group:
                 if not re.search(blackout.group, alert.group):
                     log.debug(
-                        '%s doesn\'t match the blackout group %s',
+                        "%s doesn't match the blackout group %s",
                         alert.group,
                         blackout.group,
                     )
                     continue
                 match = True
-                log.debug('%s matched %s', blackout.group, alert.group)
+                log.debug("%s matched %s", blackout.group, alert.group)
             if blackout.event:
                 if not re.search(blackout.event, alert.event):
                     log.debug(
-                        '%s doesn\'t match the blackout event %s',
+                        "%s doesn't match the blackout event %s",
                         alert.event,
                         blackout.event,
                     )
                     continue
                 match = True
-                log.debug('%s matched %s', blackout.event, alert.event)
+                log.debug("%s matched %s", blackout.event, alert.event)
             if blackout.resource:
                 if not re.search(blackout.resource, alert.resource):
                     log.debug(
-                        '%s doesn\'t match the blackout resource %s',
+                        "%s doesn't match the blackout resource %s",
                         alert.resource,
                         blackout.resource,
                     )
                     continue
                 match = True
-                log.debug('%s matched %s', blackout.resource, alert.resource)
-            if blackout.service:
-                if not re.search(blackout.service[0], alert.service[0]):
+                log.debug("%s matched %s", blackout.resource, alert.resource)
+            if blackout.service and alert.service:
+                if len(blackout.service) != len(alert.service):
+                    continue
+                if not all(
+                    [
+                        re.search(blackout.service[index], alert.service[index])
+                        for index in range(len(alert.service))
+                    ]
+                ):
                     log.debug(
-                        '%s doesn\'t match the blackout service %s',
-                        alert.service[0],
-                        blackout.service[0],
+                        "%s don't seem to match the blackout service(s) %s",
+                        str(alert.service),
+                        str(blackout.service),
                     )
                     continue
                 match = True
-                log.debug('%s matched %s', blackout.service[0], alert.service[0])
+                log.debug("%s matched %s", blackout.service[0], alert.service[0])
             if blackout.tags and alert.tags:
                 blackout_tags = parse_tags(blackout.tags)
                 if not set(blackout_tags.keys()).issubset(set(alert_tags.keys())):
@@ -200,7 +175,7 @@ class BlackoutRegex(PluginBase):
                     ]
                 ):
                     log.debug(
-                        '%s don\'t seem to match the blackout tag(s) %s',
+                        "%s don't seem to match the blackout tag(s) %s",
                         str(alert_tags),
                         str(blackout_tags),
                     )
@@ -208,13 +183,13 @@ class BlackoutRegex(PluginBase):
                 match = True
             if match:
                 log.debug(
-                    'Alert %s seems to match (regex) blackout %s. '
-                    'Adding regex_blackout and status',
+                    "Alert %s seems to match (regex) blackout %s. "
+                    "Adding regex_blackout and status",
                     alert.id,
                     blackout.id,
                 )
-                alert.tags.extend(['regex_blackout={}'.format(blackout.id)])
-                alert.status = 'blackout'
+                alert.tags.extend(["regex_blackout={}".format(blackout.id)])
+                alert.status = "blackout"
                 return alert
 
         return alert
