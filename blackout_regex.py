@@ -17,6 +17,14 @@ log = logging.getLogger("alerta.plugins.blackout_regex")
 def parse_tags(tag_list):
     return {k: v for k, v in (i.split("=", 1) for i in tag_list if "=" in i)}
 
+# access dictionary items as attributes
+class objdict(dict):
+    def __getattr__(self, name):
+        if name in self:
+            return self[name]
+
+    def __setattr__(self, name, value):
+        self[name] = value
 
 class BlackoutRegex(PluginBase):
     def _fetch_blackouts(self):
@@ -100,6 +108,7 @@ class BlackoutRegex(PluginBase):
             log.debug("Evaluating blackout")
             log.debug(blackout)
             match = False
+            blackout = objdict(blackout) # access dict items as attributes
             if blackout.environment:
                 if not re.search(blackout.environment, alert.environment):
                     log.debug(
