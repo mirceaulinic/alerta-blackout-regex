@@ -29,7 +29,7 @@ verify whether the blackout referenced is still active.
     mechanisms, processing each and every alert throguh `pre_receive` would put 
     a lot more workload on your Alerta API. To reduce this, the 
     `blackout_regex` plugin now caches the Blackouts locally, into a file. To 
-    fine tune this behaviour for your own setuo you are able to set a few 
+    fine tune this behaviour for your own setup you are able to set a few 
     environment variables. See more details below, under the _Configuration_ 
     section.
 
