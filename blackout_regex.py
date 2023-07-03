@@ -114,6 +114,20 @@ class BlackoutRegex(PluginBase):
                     blackout.environment,
                     alert.environment,
                 )
+            if blackout.customer:
+                if not re.search(blackout.customer, alert.customer):
+                    log.debug(
+                        "%s doesn't match the blackout customer %s",
+                        alert.customer,
+                        blackout.customer,
+                    )
+                    continue
+                match = True
+                log.debug(
+                    "%s matched %s",
+                    blackout.customer,
+                    alert.customer,
+                )
             if blackout.group:
                 if not re.search(blackout.group, alert.group):
                     log.debug(
