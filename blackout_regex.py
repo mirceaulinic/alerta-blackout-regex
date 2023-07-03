@@ -8,8 +8,9 @@ Alerta plugin to enhance the blackout system.
 import re
 import logging
 
-from alerta.app import db
+from alerta.models.blackout import Blackout
 from alerta.plugins import PluginBase
+from alerta.exceptions import BlackoutPeriod
 
 log = logging.getLogger("alerta.plugins.blackout_regex")
 
@@ -21,9 +22,12 @@ def parse_tags(tag_list):
 class BlackoutRegex(PluginBase):
     def _fetch_blackouts(self):
         try:
-            count = db.get_blackouts_count()
-            log.debug("There are %d Blackouts currently open", count)
-            blackouts = db.get_blackouts(page=1, page_size=count)
+            # retrieve all blackouts from the DB.
+            # use the alerta blackout model to retrieve the blackouts.
+            # The model standardizes the data returned from mongodb and postgres db.
+            count = Blackout.count()
+            log.debug(f"There are {count} Blackouts currently open")
+            blackouts = Blackout.find_all(page=1, page_size=count)
             log.debug("Retrieved Blackouts from the DB:")
             log.debug(blackouts)
         except Exception:
@@ -52,6 +56,8 @@ class BlackoutRegex(PluginBase):
             return alert
 
         blackouts = self._fetch_blackouts()
+
+        NOTIFICATION_BLACKOUT = self.get_config('NOTIFICATION_BLACKOUT', default=False, type=bool, **kwargs)
 
         alert_tags = parse_tags(alert.tags)
 
@@ -182,6 +188,9 @@ class BlackoutRegex(PluginBase):
                     continue
                 match = True
             if match:
+                if not NOTIFICATION_BLACKOUT:
+                    log.debug(f'Suppressed alert during blackout period (id={alert.id})')
+                    raise BlackoutPeriod('Suppressed alert during blackout period')
                 log.debug(
                     "Alert %s seems to match (regex) blackout %s. "
                     "Adding regex_blackout and status",
