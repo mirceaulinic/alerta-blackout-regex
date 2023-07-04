@@ -12,6 +12,7 @@ BLACKOUTS = [
     {
         "status": "active",
         "environment": "test",
+        "customer": None,
         "tags": [],
         "service": [],
         "resource": r"test\d",
@@ -23,6 +24,7 @@ BLACKOUTS = [
     {
         "status": "active",
         "environment": "test",
+        "customer": None,
         "tags": [],
         "service": ["service-([a-zA-Z])"],
         "resource": None,
@@ -34,6 +36,7 @@ BLACKOUTS = [
     {
         "status": "active",
         "environment": "test",
+        "customer": None,
         "tags": ["site=site.*", "role=router"],
         "service": [],
         "resource": None,
@@ -45,6 +48,7 @@ BLACKOUTS = [
     {
         "status": "active",
         "environment": "test",
+        "customer": None,
         "tags": ["site=site.*", "role=firewall"],
         "service": [],
         "resource": None,
@@ -56,6 +60,7 @@ BLACKOUTS = [
     {
         "status": "closed",
         "environment": "test",
+        "customer": None,
         "tags": ["site=site.*", "role=router"],
         "service": [],
         "resource": None,
@@ -68,6 +73,7 @@ BLACKOUTS = [
     {
         "status": "closed",
         "environment": r"(rgx|env)",
+        "customer": None,
         "tags": [],
         "service": ["test-.*"],
         "resource": "FPC.*",
@@ -80,6 +86,7 @@ BLACKOUTS = [
     {
         "status": "active",
         "environment": r"(rgx|env)",
+        "customer": None,
         "tags": [],
         "service": [],
         "resource": None,
@@ -87,6 +94,18 @@ BLACKOUTS = [
         "group": None,
         "duration": 3600,
         "id": "7",
+    },
+    {
+        "status": "active",
+        "environment": "customers",
+        "customer": "acme",
+        "tags": [],
+        "service": [],
+        "resource": r"test\d",
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "8",
     },
 ]
 
@@ -149,6 +168,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="no-match",
             environment="test",
+            customer=None,
             resource="test::resource",
             event="test-event",
             group="test",
@@ -168,6 +188,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="match-env",
             environment="rgx",
+            customer=None,
             resource="test10",
             event="test-event",
             group="test",
@@ -180,6 +201,26 @@ class TestEnhance(unittest.TestCase):
         self.assertEqual(test.status, "blackout")
         self.assertEqual(test.tags, ["regex_blackout=7"])
 
+    def test_new_alert_match_customer(self):
+        """
+        Test alert matching a regex blackout on the customer field.
+        """
+        alert = Alert(
+            id="match-customer",
+            environment="customers",
+            customer="acme",
+            resource="test1",
+            event="test-event",
+            group="test",
+            service=["test-service"],
+            tags=[],
+            status="open",
+        )
+        test_obj = BlackoutRegex()
+        test = test_obj.pre_receive(alert)
+        self.assertEqual(test.status, "blackout")
+        self.assertEqual(test.tags, ["regex_blackout=8"])
+
     def test_new_alert_match_resource(self):
         """
         Test alert matching a regex blackout on the resource field.
@@ -187,6 +228,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="match-resource",
             environment="test",
+            customer=None,
             resource="test1",
             event="test-event",
             group="test",
@@ -206,6 +248,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="match-service",
             environment="test",
+            customer=None,
             resource="test::resource",
             event="test-event",
             group="test",
@@ -225,6 +268,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="match-tag",
             environment="test",
+            customer=None,
             resource="test::resource",
             event="test-event",
             group="test",
@@ -244,6 +288,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="no-match-tags",
             environment="test",
+            customer=None,
             resource="test::resource",
             event="test-event",
             group="test",
@@ -263,6 +308,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="multi-match",
             environment="rgx",
+            customer=None,
             resource="FPC1",
             event="FPCDown",
             group="test",
@@ -282,6 +328,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="old-alert",
             environment="test",
+            customer=None,
             resource="test::resource",
             event="test-event",
             group="test",
@@ -301,6 +348,7 @@ class TestEnhance(unittest.TestCase):
         alert = Alert(
             id="old-alert",
             environment="test",
+            customer=None,
             resource="test::resource",
             event="test-event",
             group="test",
