@@ -57,7 +57,7 @@ class BlackoutRegex(PluginBase):
 
         blackouts = self._fetch_blackouts()
 
-        NOTIFICATION_BLACKOUT = self.get_config('NOTIFICATION_BLACKOUT', default=False, type=bool, **kwargs)
+        NOTIFICATION_BLACKOUT = self.get_config('NOTIFICATION_BLACKOUT', default=False, type=bool)
 
         alert_tags = parse_tags(alert.tags)
 
