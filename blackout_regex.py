@@ -57,7 +57,9 @@ class BlackoutRegex(PluginBase):
 
         blackouts = self._fetch_blackouts()
 
-        NOTIFICATION_BLACKOUT = self.get_config('NOTIFICATION_BLACKOUT', default=False, type=bool, **kwargs)
+        NOTIFICATION_BLACKOUT = self.get_config(
+            "NOTIFICATION_BLACKOUT", default=False, type=bool
+        )
 
         alert_tags = parse_tags(alert.tags)
 
@@ -203,8 +205,10 @@ class BlackoutRegex(PluginBase):
                 match = True
             if match:
                 if not NOTIFICATION_BLACKOUT:
-                    log.debug(f'Suppressed alert during blackout period (id={alert.id})')
-                    raise BlackoutPeriod('Suppressed alert during blackout period')
+                    log.debug(
+                        f"Suppressed alert during blackout period (id={alert.id})"
+                    )
+                    raise BlackoutPeriod("Suppressed alert during blackout period")
                 log.debug(
                     "Alert %s seems to match (regex) blackout %s. "
                     "Adding regex_blackout and status",

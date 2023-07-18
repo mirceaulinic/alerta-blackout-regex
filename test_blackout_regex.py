@@ -5,8 +5,10 @@ import unittest
 
 from mock import MagicMock
 
-app = sys.modules["alerta.app"] = MagicMock()
-app.db = MagicMock()
+blackout_exceptions = sys.modules["alerta.exceptions"] = MagicMock()
+blackout_exceptions.BlackoutPeriod = MagicMock
+
+blackout_mock = sys.modules["alerta.models.blackout"] = MagicMock()
 
 BLACKOUTS = [
     {
@@ -129,7 +131,11 @@ class Model:
 
 
 class Blackout(Model):
-    pass
+    def find_all(page=1, page_size=0):
+        return [Blackout(**blackout) for blackout in BLACKOUTS]
+
+    def count():
+        return len(BLACKOUTS)
 
 
 class Alert(Model):
@@ -145,11 +151,7 @@ class Alert(Model):
         self.status = status
 
 
-def _get_blackouts(**kwargs):
-    return [Blackout(**blackout) for blackout in BLACKOUTS]
-
-
-app.db.get_blackouts = _get_blackouts
+blackout_mock.Blackout = Blackout
 
 plugins_mod = sys.modules["alerta.plugins"] = MagicMock()
 plugins_mod.PluginBase = MagicMock
