@@ -78,4 +78,4 @@ References
 License
 -------
 
-Copyright (c) 2020-2022 Mircea Ulinic. Available under the Apache License 2.0.
+Copyright (c) 2020-2023 Mircea Ulinic. Available under the Apache License 2.0.
