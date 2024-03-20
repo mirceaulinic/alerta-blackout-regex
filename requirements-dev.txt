@@ -1,6 +1,6 @@
 tox==4.6.4
 mock==5.1.0
 nose==1.3.7
-black==23.7.0
+black==24.3.0
 pylama==8.4.1
 alerta==8.5.2
