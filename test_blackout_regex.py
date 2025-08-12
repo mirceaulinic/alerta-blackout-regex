@@ -109,6 +109,18 @@ BLACKOUTS = [
         "duration": 3600,
         "id": "8",
     },
+    {
+        "status": "active",
+        "environment": "customers",
+        "customer": "acme",
+        "tags": [],
+        "service": [],
+        "resource": r"*invalid\d",
+        "event": None,
+        "group": None,
+        "duration": 3600,
+        "id": "9",
+    },
 ]
 
 

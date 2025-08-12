@@ -35,6 +35,19 @@ class BlackoutRegex(PluginBase):
             blackouts = []
         return blackouts
 
+    def _re_search(self, pattern, string):
+        """
+        A simple wrapper around re.search that handles the case where the
+        pattern is invalid.
+        """
+        try:
+            r = re.compile(pattern)
+        except re.error:
+            # consider the pattern is just a string
+            log.debug("Invalid regex pattern: %s", pattern)
+            return pattern in string
+        return r.search(string)
+
     def _apply_blackout(self, alert):
         """
         The regex blackouts are evaluated in the ``post_receive`` in order to
@@ -109,7 +122,7 @@ class BlackoutRegex(PluginBase):
             log.debug(blackout)
             match = False
             if blackout.environment:
-                if not re.search(blackout.environment, alert.environment):
+                if not self._re_search(blackout.environment, alert.environment):
                     log.debug(
                         "%s doesn't match the blackout environment %s",
                         alert.environment,
@@ -123,7 +136,7 @@ class BlackoutRegex(PluginBase):
                     alert.environment,
                 )
             if blackout.customer:
-                if not re.search(blackout.customer, alert.customer):
+                if not self._re_search(blackout.customer, alert.customer):
                     log.debug(
                         "%s doesn't match the blackout customer %s",
                         alert.customer,
@@ -137,7 +150,7 @@ class BlackoutRegex(PluginBase):
                     alert.customer,
                 )
             if blackout.group:
-                if not re.search(blackout.group, alert.group):
+                if not self._re_search(blackout.group, alert.group):
                     log.debug(
                         "%s doesn't match the blackout group %s",
                         alert.group,
@@ -147,7 +160,7 @@ class BlackoutRegex(PluginBase):
                 match = True
                 log.debug("%s matched %s", blackout.group, alert.group)
             if blackout.event:
-                if not re.search(blackout.event, alert.event):
+                if not self._re_search(blackout.event, alert.event):
                     log.debug(
                         "%s doesn't match the blackout event %s",
                         alert.event,
@@ -157,7 +170,7 @@ class BlackoutRegex(PluginBase):
                 match = True
                 log.debug("%s matched %s", blackout.event, alert.event)
             if blackout.resource:
-                if not re.search(blackout.resource, alert.resource):
+                if not self._re_search(blackout.resource, alert.resource):
                     log.debug(
                         "%s doesn't match the blackout resource %s",
                         alert.resource,
@@ -171,7 +184,7 @@ class BlackoutRegex(PluginBase):
                     continue
                 if not all(
                     [
-                        re.search(blackout.service[index], alert.service[index])
+                        self._re_search(blackout.service[index], alert.service[index])
                         for index in range(len(alert.service))
                     ]
                 ):
@@ -191,7 +204,9 @@ class BlackoutRegex(PluginBase):
                     continue
                 if not all(
                     [
-                        re.search(blackout_tags[blackout_tag], alert_tags[blackout_tag])
+                        self._re_search(
+                            blackout_tags[blackout_tag], alert_tags[blackout_tag]
+                        )
                         for blackout_tag in blackout_tags
                         if blackout_tag in alert_tags
                     ]
